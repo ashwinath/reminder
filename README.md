@@ -9,11 +9,12 @@ This app is a cli app that keeps a list of reminders. We can save the sqlite db 
 
 A reminder has the following attributes:
 - id: number
-- status: active/completed
+- status: active/completed/cancelled
 - description: just plain text
 - URL: url relevant to the reminder
 - created date
 - updated date
+- remarks
 
 ### Adding Reminders
 
@@ -23,8 +24,8 @@ To add a reminder, the user just has to issue the following command.
 And it should return the following:
 ```
 Added reminder:
-ID   | Description    | URL    | status
-<id> | <$description> | <$url> | active
+ID   | Description    | URL    | status | remarks
+<id> | <$description> | <$url> | active | 
 ```
 
 ### Marking reminder as completed
@@ -36,9 +37,22 @@ And it should return the following:
 
 ```
 Completed reminder:
-ID   | Description    | URL    | status
-<$id1> | <$description> | <$url> | completed
-<$id2> | <$description> | <$url> | completed
+ID     | Description    | URL    | status    | remarks
+<$id1> | <$description> | <$url> | completed |
+<$id2> | <$description> | <$url> | completed |
+```
+
+### Marking reminder as cancelled
+
+To mark a reminder as cancelled, the user just has to issue the following command.
+`reminder cancel <$id1> <$reason>`
+
+And it should return the following:
+
+```
+Cancelled reminder:
+ID     | Description    | URL    | status    | remarks
+<$id1> | <$description> | <$url> | cancelled | <$reason>
 ```
 
 ### Marking reminder as active
@@ -64,9 +78,9 @@ And it should return the following but the data is actually deleted:
 
 ```
 Deleted reminder:
-ID   | Description    | URL    | status
-<$id1> | <$description> | <$url> | deleted
-<$id2> | <$description> | <$url> | deleted
+ID     | Description    | URL    | status  | remarks
+<$id1> | <$description> | <$url> | deleted |
+<$id2> | <$description> | <$url> | deleted |
 ```
 
 ### Getting reminders
@@ -75,18 +89,18 @@ By default we will only return active reminders:
 
 And it should return the following:
 ```
-ID   | Description    | URL    | status
-<$id1> | <$description> | <$url> | active
-<$id2> | <$description> | <$url> | active
+ID     | Description    | URL    | status | remarks
+<$id1> | <$description> | <$url> | active |
+<$id2> | <$description> | <$url> | active |
 ```
 
 If we want to get all statuses, we can do
 `reminder get all`
 ```
-ID   | Description    | URL    | status
-<$id1> | <$description> | <$url> | active
-<$id2> | <$description> | <$url> | active
-<$id3> | <$description> | <$url> | completed
+ID     | Description    | URL    | status    | remarks
+<$id1> | <$description> | <$url> | active    |
+<$id2> | <$description> | <$url> | active    |
+<$id3> | <$description> | <$url> | completed |
 ```
 
 If we want it in a slack friendly format, we can do

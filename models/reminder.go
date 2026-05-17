@@ -7,6 +7,7 @@ type Reminder struct {
 	Status      string
 	Description string
 	URL         string
+	Remarks     string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

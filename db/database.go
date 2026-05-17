@@ -52,18 +52,24 @@ func (d *Database) initSchema() error {
 		status TEXT NOT NULL DEFAULT 'active',
 		description TEXT NOT NULL,
 		url TEXT NOT NULL,
+		remarks TEXT NOT NULL DEFAULT '',
 		created_at DATETIME NOT NULL,
 		updated_at DATETIME NOT NULL
 	);`
 	_, err := d.conn.Exec(query)
-	return err
+	if err != nil {
+		return err
+	}
+
+	_, err = d.conn.Exec("ALTER TABLE reminders ADD COLUMN remarks TEXT NOT NULL DEFAULT ''")
+	return nil
 }
 
 func (d *Database) Add(description, url string) (*models.Reminder, error) {
 	now := time.Now()
 	result, err := d.conn.Exec(
-		"INSERT INTO reminders (status, description, url, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-		"active", description, url, now, now,
+		"INSERT INTO reminders (status, description, url, remarks, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+		"active", description, url, "", now, now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add reminder: %w", err)
@@ -79,6 +85,7 @@ func (d *Database) Add(description, url string) (*models.Reminder, error) {
 		Status:      "active",
 		Description: description,
 		URL:         url,
+		Remarks:     "",
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}, nil
@@ -170,9 +177,9 @@ func (d *Database) Delete(ids []int64) ([]models.Reminder, error) {
 func (d *Database) GetByID(id int64) (*models.Reminder, error) {
 	reminder := &models.Reminder{}
 	err := d.conn.QueryRow(
-		"SELECT id, status, description, url, created_at, updated_at FROM reminders WHERE id = ?",
+		"SELECT id, status, description, url, remarks, created_at, updated_at FROM reminders WHERE id = ?",
 		id,
-	).Scan(&reminder.ID, &reminder.Status, &reminder.Description, &reminder.URL, &reminder.CreatedAt, &reminder.UpdatedAt)
+	).Scan(&reminder.ID, &reminder.Status, &reminder.Description, &reminder.URL, &reminder.Remarks, &reminder.CreatedAt, &reminder.UpdatedAt)
 
 	if err != nil {
 		return nil, fmt.Errorf("reminder with ID %d not found", id)
@@ -186,9 +193,9 @@ func (d *Database) GetAll(status string) ([]models.Reminder, error) {
 	var args []any
 
 	if status == "all" {
-		query = "SELECT id, status, description, url, created_at, updated_at FROM reminders ORDER BY id"
+		query = "SELECT id, status, description, url, remarks, created_at, updated_at FROM reminders ORDER BY id"
 	} else {
-		query = "SELECT id, status, description, url, created_at, updated_at FROM reminders WHERE status = ? ORDER BY id"
+		query = "SELECT id, status, description, url, remarks, created_at, updated_at FROM reminders WHERE status = ? ORDER BY id"
 		args = append(args, "active")
 	}
 
@@ -201,13 +208,36 @@ func (d *Database) GetAll(status string) ([]models.Reminder, error) {
 	var reminders []models.Reminder
 	for rows.Next() {
 		var r models.Reminder
-		if err := rows.Scan(&r.ID, &r.Status, &r.Description, &r.URL, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.Status, &r.Description, &r.URL, &r.Remarks, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan reminder: %w", err)
 		}
 		reminders = append(reminders, r)
 	}
 
 	return reminders, nil
+}
+
+func (d *Database) Cancel(id int64, reason string) (*models.Reminder, error) {
+	now := time.Now()
+
+	result, err := d.conn.Exec(
+		"UPDATE reminders SET status = ?, remarks = ?, updated_at = ? WHERE id = ?",
+		"cancelled", reason, now, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cancel reminder %d: %w", id, err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("reminder with ID %d not found", id)
+	}
+
+	return d.GetByID(id)
 }
 
 func (d *Database) Close() error {

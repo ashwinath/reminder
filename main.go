@@ -10,7 +10,7 @@ import (
 )
 
 func printTableHeader() {
-	fmt.Printf("%-5s | %-20s | %-30s | %s\n", "ID", "Description", "URL", "Status")
+	fmt.Printf("%-5s | %-20s | %-30s | %-10s | %s\n", "ID", "Description", "URL", "Status", "Remarks")
 }
 
 func printReminder(r interface {
@@ -18,8 +18,9 @@ func printReminder(r interface {
 	GetDescription() string
 	GetURL() string
 	GetStatus() string
+	GetRemarks() string
 }) {
-	fmt.Printf("%-5d | %-20s | %-30s | %s\n", r.GetID(), r.GetDescription(), r.GetURL(), r.GetStatus())
+	fmt.Printf("%-5d | %-20s | %-30s | %-10s | %s\n", r.GetID(), r.GetDescription(), r.GetURL(), r.GetStatus(), r.GetRemarks())
 }
 
 type ReminderRow struct {
@@ -27,12 +28,14 @@ type ReminderRow struct {
 	Description string
 	URL         string
 	Status      string
+	Remarks     string
 }
 
 func (r ReminderRow) GetID() int64          { return r.ID }
 func (r ReminderRow) GetDescription() string { return r.Description }
 func (r ReminderRow) GetURL() string         { return r.URL }
 func (r ReminderRow) GetStatus() string      { return r.Status }
+func (r ReminderRow) GetRemarks() string     { return r.Remarks }
 
 func main() {
 	if len(os.Args) < 2 {
@@ -74,6 +77,17 @@ func main() {
 			os.Exit(1)
 		}
 		cmdDelete(database, os.Args[2:])
+	case "cancel":
+		if len(os.Args) < 4 {
+			fmt.Fprintf(os.Stderr, "Usage: reminder cancel <id> <reason>\n")
+			os.Exit(1)
+		}
+		id, err := strconv.ParseInt(os.Args[2], 10, 64)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: invalid ID: %s\n", os.Args[2])
+			os.Exit(1)
+		}
+		cmdCancel(database, id, os.Args[3])
 	case "get":
 		status := "active"
 		format := "table"
@@ -101,6 +115,7 @@ func printUsage() {
 	fmt.Println("Commands:")
 	fmt.Println("  add <description> <url>    Add a new reminder")
 	fmt.Println("  complete <id1> [id2] ...   Mark reminder(s) as completed")
+	fmt.Println("  cancel <id> <reason>       Mark reminder as cancelled with reason")
 	fmt.Println("  active <id1> [id2] ...   Mark reminder(s) as active")
 	fmt.Println("  delete <id1> [id2] ...     Delete reminder(s)")
 	fmt.Println("  get [all]                  Get reminders (default: active only)")
@@ -120,6 +135,7 @@ func cmdAdd(database *db.Database, description, url string) {
 		Description: reminder.Description,
 		URL:         reminder.URL,
 		Status:      reminder.Status,
+		Remarks:     reminder.Remarks,
 	})
 }
 
@@ -144,8 +160,27 @@ func cmdComplete(database *db.Database, args []string) {
 			Description: r.Description,
 			URL:         r.URL,
 			Status:      r.Status,
+			Remarks:     r.Remarks,
 		})
 	}
+}
+
+func cmdCancel(database *db.Database, id int64, reason string) {
+	reminder, err := database.Cancel(id, reason)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Cancelled reminder:")
+	printTableHeader()
+	printReminder(ReminderRow{
+		ID:          reminder.ID,
+		Description: reminder.Description,
+		URL:         reminder.URL,
+		Status:      reminder.Status,
+		Remarks:     reminder.Remarks,
+	})
 }
 
 func cmdActive(database *db.Database, args []string) {
@@ -169,6 +204,7 @@ func cmdActive(database *db.Database, args []string) {
 			Description: r.Description,
 			URL:         r.URL,
 			Status:      r.Status,
+			Remarks:     r.Remarks,
 		})
 	}
 }
@@ -194,6 +230,7 @@ func cmdDelete(database *db.Database, args []string) {
 			Description: r.Description,
 			URL:         r.URL,
 			Status:      "deleted",
+			Remarks:     r.Remarks,
 		})
 	}
 }
@@ -227,6 +264,7 @@ func cmdGet(database *db.Database, status, format, topMessage string) {
 			Description: r.Description,
 			URL:         r.URL,
 			Status:      r.Status,
+			Remarks:     r.Remarks,
 		})
 	}
 }
